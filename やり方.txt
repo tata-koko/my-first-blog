@@ -1,0 +1,213 @@
+Django Girls Blog
+published: 2021年11月10日10:59
+
+blogというかローカルweb立ち上げまでの手順書
+すべてのコマンドを下記に記す．間違ってたら修正
+￥command-line
+・まずは新しいディレクトリ作成，多分名前は何でも良い
+$ mkdir djangogirls（フォルダ作成）
+$ cd djangogirls（コマンド適用範囲をフォルダ直下に移動）
+・myvenvという仮想環境（virtual environment）を作成（かんたん！）
+$ python -m venv myvenv
+・仮想環境の起動（小文字で良い）
+$ myvenv\Scripts\activate
+・pipを最新バージョンに更新（必須）
+(myvenv) ~$ python -m pip install --upgrade pip
+・requirementsファイル作成(ディレクトリ直下であることを確認して）
+$ type Django~=3.2.9 > requirement.txt
+・↑手作業でtxtファイルを作成しても同じ（かっこいいだけ）手作業で作業した場合は下記をtxt
+ファイルに入力（バージョンは確認）
+Django~=3.2.9
+・いよいよDjangoをインストール
+(myvenv) ~$ pip install -r requirements.txt
+・プロジェクト作成
+(myvenv) ~$ django-admin.exe startproject mysite .
+￥mysite/settings.py
+import os
+TIME_ZONE = 'Asia/Tokyo'
+LANGUAGE_CODE = 'ja'
+・STATIC_URL = '/static/'の下に
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+・見つける↓
+ALLOWED_HOSTS = ['127.0.0.1', '.pythonanywhere.com']
+￥command-line
+・データベース作成
+(myvenv) ~/djangogirls$ python manage.py migrate
+・webサーバー（ローカル）起動
+(myvenv) ~/djangogirls$ python manage.py runserver
+・起動確認！
+アクセス！→http://127.0.0.1:8000/→ロケットが出現したら成功！
+・モデル作成（重要そう）
+(myvenv)~/djangogirls$ python manage.py startapp blog
+￥ mysite/settings.py
+・追加
+INSTALLED_APPS = [
+'django.contrib.admin',
+'django.contrib.auth',
+'django.contrib.contenttypes',
+'django.contrib.sessions',
+'django.contrib.messages',
+'django.contrib.staticfiles',
+'blog.apps.BlogConfig',←ここを追加
+]
+￥ blog/models.py
+・ブログポストモデル作成（中身全部消してから書き込み）
+from django.conf import settings
+from django.db import models
+from django.utils import timezone
+
+
+class Post(models.Model):
+author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+title = models.CharField(max_length=200)
+text = models.TextField()
+created_date = models.DateTimeField(default=timezone.now)
+published_date = models.DateTimeField(blank=True, null=True)
+
+def publish(self):
+self.published_date = timezone.now()
+self.save()
+
+def __str__(self):
+return self.title
+￥ command-line
+・データベースにモデルのためのテーブル作成
+(myvenv) ~/djangogirls$ python manage.py makemigrations blog
+(myvenv) ~/djangogirls$ python manage.py migrate blog
+￥ blog/admin.py
+・Django admin(blogを編集するところ）
+from django.contrib import admin
+from .models import Post
+
+admin.site.register(Post)
+・管理ユーザー作成(案内に従って適当に)
+(myvenv) ~\djangogirls$ python manage.py createsuperuser
+
+published: 2021年11月10日11:37
+
+Gitからwebページ公開・更新までの流れ
+https://tutorial.djangogirls.org/ja/deploy/（Gitインストールなど参考）
+￥ command-line
+・Gitリポジトリ開始
+$ git init
+Initialized empty Git repository in ~/djangogirls/.git/（これが出たらok）
+$ git config --global user.name "Your Name"(""内を適当に変更）
+$ git config --global user.email you@example.com（自分のメールアドレス）
+￥ .gitignore
+・.gitignoreファイルを作成する（無視してほしいファイルを指定らしい）
+*.pyc
+*~
+/.vscode
+__pycache__
+myvenv
+db.sqlite3
+/static
+.DS_Store
+￥ command-line
+・git状態の確認（よくわかってない）
+$ git status
+$ git add --all .（．がいるのかいらないのか要検証）
+$ git commit -m "My Django Girls app, first commit"
+・GitHubにコードをプッシュ！（ここが楽しい）
+・GitHubに飛んでリポジトリを作成，適当なrepository-nameを入れてあとは空欄
+・作成したリポジトリのURLをコピー
+$ git remote add origin コピーしたURL
+$ git push -u origin master
+￥PythonAnywhere command-line
+・PythonAnywhere に移動してアカウント作成したりAPIトークン作成したり
+・Gitのコードを認識させよう！(pythonのバージョンを要確認）
+$ pip3.9 install --user pythonanywhere
+$ pa_autoconfigure_django.py --python=3.9 コピーしたURL
+・投稿者（管理者）設定(案内に従って）
+$ python manage.py createsuperuser
+￥ mysite/urls.py
+・URLの設定
+from django.contrib import admin
+from django.urls import path, include←見落としがちかも
+
+urlpatterns = [
+path('admin/', admin.site.urls),
+path('', include('blog.urls')),←ここを追加（リクエスト先を変更）
+]
+￥ blog/urls.py
+・urls.pyを作成してから入力
+from django.urls import path
+from . import views
+urlpatterns = [
+path('', views.post_list, name='post_list'),
+]
+￥ blog/views.py
+・ビューの作成（下記追加）
+def post_list(request):
+return render(request, 'blog/post_list.html', {})
+￥ command-line
+・blog/templates/blogディレクトリを作成
+$ cd blog
+$ mkdir templates
+$ cd templates(念の為，移動できているなら必要なし）
+$ mkdir blog
+￥ blog/templates/blog/post_list.html
+・ここからはじまるHTML生活
+<html>
+<head>
+<title>Django Girls blog</title>
+</head>
+<body>
+<div>
+<h1><a href="/">Django Girls Blog</a></h1>
+</div>
+
+<div>
+<p>published: 14.06.2014, 12:14</p>
+<h2><a href="">My first post</a></h2>
+<p>Aenean eu leo quam. こんにちは！ よろしくお願いします！ </p>
+</div>
+
+<div>
+<p>公開日: 2014/06/14, 12:14</p>
+<h2><a href="">2番目の投稿</a></h2>
+<p> こんにちは！ よろしくお願いします！ </p>
+</div>
+</body>
+</html>
+￥ command-line
+・GitHubに自分のコードをPush!(更新するとき使う）
+$ git status
+$ git add --all .
+$ git status
+$ git commit -m "何でもいいからコメント"
+$ git push
+￥ PythonAnywhere command-line
+・PythonAnywhereで実行（これにて更新終了）
+$ cd ~/<your-pythonanywhere-domain>.pythonanywhere.com←通常はpythoanywhereのユーザー名
+$ git pull
+・webページに戻ってreloadしてみる
+
+published: 2021年11月10日12:00
+
+HTMLのやり方とか見せ方とか細々
+￥ blog/views.py
+・モデル追加＆日付順に並べ！（全消去してから入力）
+from django.shortcuts import render
+from django.utils import timezone
+from .models import Post←ここ追加（同じディレクトリにあるため”．”で省略できる）
+
+def post_list(request):
+posts = Post.objects.filter(published_date__lte=timezone.now()).order_by('published_date')
+return render(request, 'blog/post_list.html', {'posts': posts})
+・ここからはおまけ
+https://tutorial.djangogirls.org/ja/django_templates/
+￥command-line
+・更新方法（復習）
+$ git status
+[...]
+$ git add --all .
+$ git status
+[...]
+$ git commit -m "Modified templates to display posts from database."
+[...]
+$ git push
+￥ PythonAnywhere command-line
+$ cd <your-pythonanywhere-domain>.pythonanywhere.com←ユーザー名+tabキーでok
+$ git pull
+[...]
